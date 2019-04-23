@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: MIT
+
+/*
+ *  Copyright (c) 2019 MBition GmbH
+ */
+
+@Library('pipeliner-library')
+import com.daimler.pipeliner.*
+
+// Create a class that provides dummy implementation for abstract methods
+class ConcreteBasePipeline extends BasePipeline {
+    def steps
+    ConcreteBasePipeline(script, msg, env, ioMap) {
+        super(script, [
+            defaultInputs: '''
+                key1 = value1
+                key2 = value2
+                listKeys = one two three
+                listKey2s = one | two | three
+            ''',
+            exposed: ['key1', 'listKeys'],
+            parallel: ['listKeys']
+        ], msg, env, ioMap)
+
+        this.steps = script
+    }
+
+    // Dummy implementation for abstract methods
+    void stages(Map testMap) {
+        //We expect that parallelName is set by BasePipeline
+        assert testMap["parallelName"] != null
+        this.steps.stage("Checkout") {
+        }
+    }
+
+    // Dummy implementation for abstract methods
+    void postParallel(Map stageInput) {}
+    void postPipeline(Map results) {}
+}
+
+def execute() {
+    echo "Starting build.jenkins"
+    String mergeRequestMsg = '''--
+        key1 = value4
+        listKeys = five six seven eight
+        key2 = value6
+        key3 = value3
+    '''
+    Logger.init(this)
+    ConcreteBasePipeline b = new ConcreteBasePipeline(this, mergeRequestMsg, null, [:])
+    b.run()
+}
+
+return this

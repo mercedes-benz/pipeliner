@@ -1,0 +1,99 @@
+<p>Pipeliner provides a template to define complex pipelines and run them in
+    Jenkins.</p>
+<h2>Overview</h2>
+<h3>What is a Pipeline</h3>
+<p>A Pipeline provides a structured way to define the functionality of a job,
+    associate inputs and default values among many other things. Pipelines are
+    defined as <a href="http://groovy-lang.org/">Groovy</a> classes. </p>
+<h3>What does Pipeliner do</h3>
+<p>Pipeliner is the component that defines the template for these pipelines and
+    evenutally processes these pipelines. It also parses user inputs to
+    pipelines, configures pipelines and provides utility functions.</p>
+<h2>Setup</h2>
+<p>Pipeliner in itself is only a runner for the pipelines a project sets up and
+    maintains. It does not contain any runnable pipelines except some example
+    pipelines for reference.</p>
+<p>To set it up one needs to use <a
+        href="https://jenkins.io/doc/book/pipeline/shared-libraries/">Jenkins'
+        Shared Libraries</a> functionality to load Pipeliner and the project
+    specific library where all the pipelines and stages are specified.</p>
+<p><img src="images/deployment-diagram.png" alt="Deployment diagram"></p>
+<h2>Project specific pipelines and stages</h2>
+<p>Every project which uses Pipeliner will have their project specific
+    pipelines. Those should be provided in a seperate git repository as another
+    shared library. Every pipeline needs to be a class which extends the
+BasePipeline class and defines it's specific input parameters and stages. Stages
+should be reusable functions stored in a seperate directory.</p>
+<h2>Class diagram</h2>
+<p><img src="images/class-diagram.png" height="1000" alt="Class diagram"></p>
+
+<h2>Inputs to the pipeline</h2>
+There are 4 ways of setting up inputs for the pipeline: merge request message,
+parameters in Jenkins job, global environment variables, environment variables
+in Jenkinsfile. 
+
+<h3>Merge Request Message</h3>
+<p>The InputParser expects a message which can for example be provided from a
+    pull request or merge request description from web UI. The message needs to
+    adhere to a specific syntax so it can be parsed and understood by the
+    parser. Here is an example:</p>
+<pre>
+  This is a merge request description it can span over several lines
+
+  Like this for example, but there needs to be a delimiter at the end which
+  seperates the normal message from the data which is supposed to be parsed
+  by the parser.
+  --
+  key = value
+  listKeys = five six
+
+</pre>
+<p>The message delimiter is two or more dashes on a new line without any other
+    characters.</p>
+<p>The syntax for the rest of the data is key-value pairs with a equals sign
+    between them. Keys are case insensetive and should only contain ASCII
+    characters. Values can be either a string or a list of strings seperated by
+    the pipe character.</p>
+<p>Everything will be trimmed of whitespaces to the left and right before it
+    goes in as machine readable data into Pipeliner.</p>
+<p>Be aware that the parser only supports string and list of string types, no
+    bolean or other types. </p>
+
+<h3>Parameters in Jenkins Job</h3>
+<p>
+    Note: Gitlab project jobs cannot be parameterized by this method.<br>
+    Go to the <b>Configue</b> of the Jenkins job, and follow the setup of the
+    screenshort below, be aware of that, the name of the variables need to be prefix
+    with "PIP_" case-insensitive, to be able to separate with other normal
+    Jenkins parameters, so that the pipeliner InputParser will understand they
+    are for the pipeliner specifically.
+</p>
+<p><img src="images/jenkins-params.png" width="1400" alt="Jenkins parameters"></p>
+
+<h3>Global Environment Variables</h3>
+<p>
+    Setting up global environment variables is quite similar with the parameters
+    in Jenkins job. Go to <b>Manage Jenkins</b> -> <b>Configue System</b> ->
+    <b>Global properties</b>, then check the <b>Environment variables</b>, and
+    add environment variables as shown below. Also remember the PIP_ prefix.
+</p>
+<p><img src="images/global-env.png" width="1600" alt="Global environment"></p>
+
+
+<h3>Environment Variables in Jenkinsfile</h3>
+<p>
+    As we are using pipeliner, the heavy part of the logic are in
+    pipeliner-depot now, the current Jenkinsfile will end up with only oneline
+    like:
+    <pre>
+        execYoctoPipeline()
+    </pre>
+    And the environment variables need be configued above this line, e.g.
+    <pre>
+        env.PIP_TARGETS="rpi3_nogfx:core-image-base qemu-x86-64_nogfx:core-image-minimal"
+    </pre>
+</p>
+
+<b>Note:</b> The priorities of the four methods are Merge Request Message >
+Jenkinsfile > Jenkins Job Configure > Global Environment <br/>
+Higher priority settings always overrides lower ones if they are set in the same time.
