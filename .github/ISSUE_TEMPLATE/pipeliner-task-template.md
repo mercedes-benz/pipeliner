@@ -25,4 +25,5 @@ assignees: ''
 [//]: # (Acceptance criteria should follow the S.M.A.R.T. principle https://en.wikipedia.org/wiki/SMART_criteria )
 
 Acting on Behalf of MBition GmbH
+
 https://github.com/Daimler/daimler-foss/blob/master/LEGAL_IMPRINT.md
