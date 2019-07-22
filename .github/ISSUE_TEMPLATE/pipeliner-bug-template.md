@@ -29,7 +29,7 @@ assignees: ''
 
 ## Relevant logs and/or screenshots
 
-[//]: # (Any relevant log should be pasted in this section. Code blocks should be used ``` --- ``` to format the console output, logs, and code, as they are hard to read otherwise. Snippet can also be used and linked it here. Markdown guide on GitHub should be checked for further tips)
+[//]: # (Any relevant log should be pasted in this section. Code blocks should be used ``` --- ``` to format the console output, logs, and code, as they are hard to read otherwise. Snippet can also be used and linked here. Markdown guide on GitHub should be checked for further tips)
 
 ## Possible fixes
 
@@ -42,7 +42,7 @@ assignees: ''
 * Pipeliner version affected: 
 
 ----
-[//]: # (To review information about possible relevant labels for this issue the labels list should be reviewed: https://github.com/Daimler/pipeliner/labels )
+[//]: # (The labels list might be reviewed before adding new labels: https://github.com/Daimler/pipeliner/labels)
 
 Acting on Behalf of MBition GmbH
 
