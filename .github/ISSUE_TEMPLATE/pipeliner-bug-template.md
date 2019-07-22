@@ -9,40 +9,40 @@ assignees: ''
 
 ## Summary
 
-[//]: # (Summarize the bug encountered concisely)
+[//]: # (The bug encountered must be summarized concisely)
 
 
 ## Steps to reproduce
 
-[//]: # (How one can reproduce the issue - this is very important)
+[//]: # (How can the issue be reproduced?)
 
 
 ## What is the current bug behavior?
 
-[//]: # (What actually happens)
+[//]: # (What did it actually happen?)
 
 
 ## What is the expected correct behavior?
 
-[//]: # (What you should see instead)
+[//]: # (What should have been done instead?)
 
 
 ## Relevant logs and/or screenshots
 
-[//]: # (Paste any relevant logs - please use code blocks ``` --- ``` to format console output, logs, and code as it's hard to read otherwise. You can also add a Snippet and link it here. Check the markdown guide on GitHub for further tips)
+[//]: # (Any relevant log should be pasted in this section. Code blocks should be used ``` --- ``` to format the console output, logs, and code, as they are hard to read otherwise. Snippet can also be used and linked it here. Markdown guide on GitHub should be checked for further tips)
 
 ## Possible fixes
 
-[//]: # (If you can, link to the line of code that might be responsible for the problem)
+[//]: # (The code line number that might be responsible for the problem should be added when possible)
 
 ## Other relevant information
 
-[//]: # (Add the Pipeliner version. Substitute below the "x" by "1", "2" or the right version. Add more than one version if necessary)
+[//]: # (Pipeliner version should be added, more than one when appropriate)
 
 * Pipeliner version affected: 
 
 ----
-[//]: # (To review information about possible relevant labels for this issue please view the list of labels: https://github.com/Daimler/pipeliner/labels )
+[//]: # (To review information about possible relevant labels for this issue the labels list should be reviewed: https://github.com/Daimler/pipeliner/labels )
 
 Acting on Behalf of MBition GmbH
 
