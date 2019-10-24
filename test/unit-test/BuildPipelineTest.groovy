@@ -38,6 +38,7 @@ class BuildPipelineTest extends BasePipelineTest {
             helper.registerAllowedMethod("node", [String.class, Closure.class], null)
             helper.registerAllowedMethod("stage", [String.class, Closure.class], null)
             helper.registerAllowedMethod("lock", [String.class, Closure.class], null)
+            helper.registerAllowedMethod("timestamps", [Closure.class], null)
             binding.setProperty("Artifactory", am)
 
             Logger.init(this)

@@ -5,13 +5,14 @@
  */
 
 package com.daimler.pipeliner
+
+import com.daimler.pipeliner.Logger
+
 /**
  * This class provides helper functions to improve Jenkins scripting
  *
  * @author Toni Kauppinen
  */
-
-import com.daimler.pipeliner.Logger
 
 public class ScriptUtils {
     /**
@@ -27,7 +28,8 @@ public class ScriptUtils {
     /**
      * The artifactory object instance from Jenkins
      */
-    private def artifactory
+    private def artifactory = null
+
     /**
      * Internal environment load command
      *
@@ -77,45 +79,81 @@ public class ScriptUtils {
 
     /**
      * Initializes Artifactory server instance
+     *
+     * @return Artifactory server instance or null in case of failure
      */
-    def setArtifactory(){
+    def initArtifactory() {
         String artifactoryUrl
 
-        if(!this.artifactory)
-            artifactoryUrl= this.env.ARTIFACTORY_URL ? this.env.ARTIFACTORY_URL : ""
-            def server = this.script.Artifactory.newServer(url: artifactoryUrl)
+        if (this.artifactory == null) {
+            artifactoryUrl = this.env.ARTIFACTORY_URL ? this.env.ARTIFACTORY_URL : ""
+            def server = null
+            if (artifactoryUrl != "") {
+                Logger.info("Artifactory: " + artifactoryUrl)
+                server = this.script.Artifactory.newServer(url: artifactoryUrl)
+            } else {
+                Logger.info("Artifactory: default-artifactory-server-id")
+                server = this.script.Artifactory.server("default-artifactory-server-id")
+            }
+
             server.credentialsId = getArtifactoryCredentialsFromEnvironment()
             server.bypassProxy = true
             this.artifactory = server
+        }
+        return this.artifactory
     }
 
     /**
-     * Upload files to artifactory server
-     * @param target Upload location in Artifactory
-     * @param pattern A pattern that defines the files to upload
+     * Publishes build info to artifactory for a given set of uploaded artifacts
+     * See details:
+     * https://javadoc.jenkins.io/plugin/artifactory/org/jfrog/hudson/pipeline/common/types/buildInfo/BuildInfo.html
+     *
+     * @param buildInfo Build info data
      */
-    def uploadToArtifactory(String target, String pattern){
-        setArtifactory()
-        def uploadSpec = """{
-            "files":[
-                        {
-                            "pattern": \"${pattern}\",
-                            "target": \"${target}\"
-                        }
-                    ]
-            }"""
-
-        def buildInfo = this.artifactory.upload(uploadSpec)
+    def publishBuildInfoToArtifactory(def buildInfo) {
+        initArtifactory()
         this.artifactory.publishBuildInfo(buildInfo)
     }
 
     /**
+     * Enables interactive promotion feature for Jenkins Artifactory plugin.
+     * Adds `Artifactory Release Promotion` button to Jenkins user interface for current build.
+     */
+    def enableInteractiveArtifactPromotion(){
+        initArtifactory()
+        def promotionConfig = [
+                'buildName'          : this.env.JOB_NAME.replaceAll('/',' :: '),
+                'buildNumber'          : this.env.BUILD_NUMBER,
+        ]
+        this.script.Artifactory.addInteractivePromotion(server: this.artifactory, promotionConfig: promotionConfig)
+    }
+
+    /**
+     * Upload files to artifactory server
+     * See details:
+     * https://javadoc.jenkins.io/plugin/artifactory/org/jfrog/hudson/pipeline/common/types/buildInfo/BuildInfo.html
+     *
+     * @param target Upload location in Artifactory
+     * @param pattern A pattern that defines the files to upload
+     * @return BuildInfo for artifactory
+     */
+    def uploadToArtifactory(String pattern, String target, boolean flat = false) {
+        initArtifactory()
+        def uploadSpec = """{ "files": [ { "pattern": "${pattern}", "target": "${target}", "excludePatterns": ["*.sha1","*.md5","*.sha256","*.sha512"], "flat": "${flat}" } ] }"""
+        return this.artifactory.upload(uploadSpec)
+    }
+
+    /**
      * Download files from artifactory server with defined downloadSpec
+     * See details:
+     * https://javadoc.jenkins.io/plugin/artifactory/org/jfrog/hudson/pipeline/common/types/buildInfo/BuildInfo.html
+     *
      * @param target Download location in Artifactory
      * @param pattern A pattern that defines the files to download
+     * @return BuildInfo for artifactory
      */
-    def downloadFromArtifactory(String target, String pattern){
-        setArtifactory()
+    def downloadFromArtifactory(String pattern, String target) {
+        initArtifactory()
         def downloadSpec = """{
             "files":[
                         {
@@ -125,27 +163,87 @@ public class ScriptUtils {
                     ]
             }"""
 
-        def buildInfo = this.artifactory.download(downloadSpec)
-        this.artifactory.publishBuildInfo(buildInfo)
+        return this.artifactory.download(downloadSpec)
     }
+
+    /**
+     * Copy files in artifactory to another location
+     *
+     * @param from From path/file
+     * @param to Destination path/file
+     */
+    def copyInArtifactory(String from, String to) {
+        initArtifactory()
+
+        script.withCredentials([script.usernameColonPassword(credentialsId: this.artifactory.credentialsId, variable: "ARTIFACTORY_USERPASS")]) {
+            String urlCmd = "'${this.artifactory.getUrl()}/api/copy/${from}?to=${to}'"
+            String curlCmd = "curl --silent --show-error -u ${script.ARTIFACTORY_USERPASS} -X POST ${urlCmd}"
+
+            Logger.info("Copy artifact with the curl cmd '${curlCmd}'")
+            shWithStdout(curlCmd)
+        }
+    }
+
+    /**
+     * Move files in artifactory to another location
+     *
+     * @param from From path/file
+     * @param to Destination path/file
+     */
+    def moveInArtifactory(String from, String to) {
+        initArtifactory()
+
+        script.withCredentials([script.usernameColonPassword(credentialsId: this.artifactory.credentialsId, variable: "ARTIFACTORY_USERPASS")]) {
+            String urlCmd = "'${this.artifactory.getUrl()}/api/move/${from}?to=${to}'"
+            String curlCmd = "curl --silent --show-error -u ${script.ARTIFACTORY_USERPASS} -X POST ${urlCmd}"
+
+            Logger.info("Move artifact with the curl cmd '${curlCmd}'")
+            shWithStdout(curlCmd)
+        }
+    }
+
+    /**
+     * Check if location exists in artifactory
+     *
+     * @param url of location
+     */
+    Boolean checkInArtifactory(String url) {
+        initArtifactory()
+
+        Integer status = -1
+
+        script.withCredentials([script.usernameColonPassword(credentialsId: this.artifactory.credentialsId, variable: "ARTIFACTORY_USERPASS")]) {
+            String cmd =    "function check { " +
+                            "if curl -u ${script.ARTIFACTORY_USERPASS} --output /dev/null --silent --head --fail \$1; " +
+                            "then return 0; " +
+                            "else return -1; fi; }; " +
+                            "check ${url}"
+            status = shWithStatus cmd
+        }
+        if (status == 0) {
+            Logger.info("URL  " + url + " is found")
+            return true
+        }
+        return false
+    }
+
 
     /**
      * Initialize internal Artifactory credential id from environment
      * @return artifactoryCredentialsId
      */
-    def private getArtifactoryCredentialsFromEnvironment(){
-        String artifactoryCredentialsId
+    def getArtifactoryCredentialsFromEnvironment() {
+        String artifactoryCredentialsId = ""
         try {
             artifactoryCredentialsId = this.env.ARTIFACTORY_CREDENTIALS_ID ? this.env.ARTIFACTORY_CREDENTIALS_ID : ""
             if (artifactoryCredentialsId.isEmpty()) {
                 def split = this.env.JOB_NAME.tokenize("./")
                 artifactoryCredentialsId = split[0] + "-artifactory"
             }
-            Logger.info("Checkout credentials: " + artifactoryCredentialsId)
         } catch (NullPointerException) {
-            artifactoryCredentialsId = ""
+            Logger.warn("Artifactory credential reading failed")
         }
-
+        Logger.info("Artifactory credentials: " + artifactoryCredentialsId)
         return artifactoryCredentialsId
     }
 

@@ -96,6 +96,21 @@ abstract class BasePipeline implements Serializable {
      */
     protected String checkoutCredentialsId
     /**
+     * Current user. This variable is evaluated from environment.
+     * Value is available once node is entered.
+     */
+    protected String currentUser
+    /**
+     * Current user id. This variable is evaluated from environment.
+     * Value is available once node is entered.
+     */
+    protected String currentUserId
+    /**
+     * Current group id. This variable is evaluated from environment.
+     * Value is available once node is entered.
+     */
+    protected String currentGroupId
+    /**
      * Root user constant that is used to run docker
      */
     final String DOCKER_ROOT_USER = "-u 0:0"
@@ -148,12 +163,25 @@ abstract class BasePipeline implements Serializable {
         } catch (NullPointerException) {
             this.checkoutCredentialsId = ""
         }
+    }
 
+    /**
+     * Initialize variables from environment, by evaluating expressions.
+     *
+     * NOTE: This has to be called when we enter the node, not before
+     * If this is called before, the variable can be set only in the jenkins
+     * global configuration.
+     */
+    void evaluateFromEnvironment() {
         try {
-            this.dockerAddHosts = this.env.DOCKER_ADD_HOSTS ? this.env.DOCKER_ADD_HOSTS : ""
+            this.dockerAddHosts = this.env.DOCKER_ADD_HOSTS ? this.env.DOCKER_ADD_HOSTS : utils.shWithStdout('echo $DOCKER_ADD_HOSTS')
         } catch (NullPointerException) {
+            Logger.warn("DOCKER_ADD_HOSTS not defined")
             this.dockerAddHosts = ""
         }
+        this.currentUser = utils.shWithStdout('echo $USER')
+        this.currentUserId = utils.shWithStdout('id -u')
+        this.currentGroupId = utils.shWithStdout('id -g')
     }
 
     void processUserInput() {
@@ -264,8 +292,11 @@ abstract class BasePipeline implements Serializable {
     void setupNodeWithStages(Map stageInput) {
         Logger.info("Parallel name: " + stageInput["parallelName"])
         this.script.node(this.nodeLabelExpr) {
+            evaluateFromEnvironment()
             this.script.ws(createWorkspaceName()) {
+              this.utils.withSshAgent( {
                 setupStages(stageInput)
+              }, this.checkoutCredentialsId)
             }
         }
     }
@@ -327,7 +358,9 @@ abstract class BasePipeline implements Serializable {
 
             this.utils.withSshAgent({
                 this.script.sh "git clone --recurse-submodules " + url + " -b " + branch + " dockerbuild"
-                this.script.sh "docker build --pull -t " + tag + " dockerbuild/" + context
+                // Custom dockerfiles may pull sources with ssh during build, we need to support experimental DOCKER_BUILDKIT
+                // to enable this functionality. Credential from ssh-agent is made available with "--ssh default"
+                this.script.sh "DOCKER_BUILDKIT=1 docker build --pull --ssh default " + this.dockerAddHosts + " -t " + tag + " dockerbuild/" + context
             }, this.checkoutCredentialsId)
         }
         else if (customDockerfileSource.contains(":")) {
@@ -339,7 +372,9 @@ abstract class BasePipeline implements Serializable {
             //Build from local alternative file
             earlyCheckout()
             this.utils.withSshAgent({
-                this.script.sh "docker build --pull -t " + tag + " -f " + customDockerfileSource + " ."
+                // Custom dockerfiles may pull sources with ssh during build, we need to support experimental DOCKER_BUILDKIT
+                // to enable this functionality. Credential from ssh-agent is made available with "--ssh default"
+                this.script.sh "DOCKER_BUILDKIT=1 docker build --pull --ssh default " + this.dockerAddHosts + " -t " + tag + " -f " + customDockerfileSource + " ."
             }, this.checkoutCredentialsId)
         }
 
@@ -374,7 +409,8 @@ abstract class BasePipeline implements Serializable {
 
         createDockerFile(image, userId, groupId, currentUser, dockerFile)
         this.utils.withSshAgent({
-            this.script.sh "docker build -t " + tag + " -f " + dockerFile + " dockerbuild"
+            // DOCKER_BUILDKIT is not needed for CI related changes, since there's no need to rebuild the base image
+            this.script.sh "docker build " + this.dockerAddHosts + " -t " + tag + " -f " + dockerFile + " dockerbuild"
         }, this.checkoutCredentialsId)
 
         return tag
@@ -525,9 +561,9 @@ abstract class BasePipeline implements Serializable {
         def evaluatedArgs = utils.shWithStdout("echo " + this.dockerArgs)
         evaluatedArgs = sanitizeDockerArgs(evaluatedArgs)
 
-        def currentUser = utils.shWithStdout('echo $USER')
-        def userId = utils.shWithStdout('id -u')
-        def groupId = utils.shWithStdout('id -g')
+        def currentUser = this.currentUser
+        def userId = this.currentUserId
+        def groupId = this.currentGroupId
 
         //Original image that is used
         String image = this.dockerImage
@@ -615,6 +651,7 @@ abstract class BasePipeline implements Serializable {
         Logger.info("Parallel name: " + stageInput["parallelName"])
         //NOTE: Running on master jenkins now
         this.script.node(this.nodeLabelExpr) {
+            evaluateFromEnvironment()
             this.script.ws(createWorkspaceName()) {
                 try {
                     this.runInDocker(stageInput)
@@ -668,11 +705,23 @@ abstract class BasePipeline implements Serializable {
     }
 
     /**
-     * Executes pipeline by invoking the stages with appropriate data
+     * Wrapper for running a pipeline by invoking the stages with appropriate data
+     * Adds timestamps to console output using timestamper plugin
      *
      * @return A Map of the input-output parameters passed to and modified by this pipeline
      */
     Map run() {
+        this.script.timestamps {
+            return runInternal()
+        }
+    }
+
+    /**
+     * Internal functionality for running a pipeline by invoking the stages with appropriate data
+     *
+     * @return A Map of the input-output parameters passed to and modified by this pipeline
+     */
+    Map runInternal() {
         // Map that holds job name as key and job closure
         Map joblist = [:]
         //List for parallels for this pipeline
@@ -700,6 +749,7 @@ abstract class BasePipeline implements Serializable {
                             this.setupNodeWithStages(stageInput)
                         } else {
                             this.script.node {
+                                evaluateFromEnvironment()
                                 //NOTE: execution must always be encased in node, even if label is not specified!
                                 this.setupStages(stageInput)
                             }
@@ -729,7 +779,6 @@ abstract class BasePipeline implements Serializable {
 
         return ioMap
     }
-
 
     /**
      * Check the given combinations is valid or not
