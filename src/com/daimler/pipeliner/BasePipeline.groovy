@@ -711,8 +711,10 @@ abstract class BasePipeline implements Serializable {
      * @return A Map of the input-output parameters passed to and modified by this pipeline
      */
     Map run() {
-        this.script.timestamps {
-            return runInternal()
+        this.script.timeout(time: 180, unit: 'SECONDS'){
+            this.script.timestamps {
+               return runInternal()
+            }
         }
     }
 
