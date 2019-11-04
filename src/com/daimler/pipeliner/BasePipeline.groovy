@@ -34,9 +34,9 @@ abstract class BasePipeline implements Serializable {
      */
     protected String nodeLabelExpr = ''
     /**
-     * The timeout for pipeline in hours
+     * The timeout for pipeline in HOURS
      */
-    protected Integer pipelineTimeout = 180
+    protected Integer pipelineTimeout = 3
     /**
      * The docker container which from private registry should be used to run this pipeline
      */
@@ -715,7 +715,7 @@ abstract class BasePipeline implements Serializable {
      * @return A Map of the input-output parameters passed to and modified by this pipeline
      */
     Map run() {
-        this.script.timeout(time: this.pipelineTimeout, unit: 'SECONDS'){
+        this.script.timeout(time: this.pipelineTimeout, unit: 'HOURS'){
             this.script.timestamps {
                return runInternal()
             }
