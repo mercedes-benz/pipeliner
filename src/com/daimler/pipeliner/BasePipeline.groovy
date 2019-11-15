@@ -722,7 +722,6 @@ abstract class BasePipeline implements Serializable {
             this.script.timestamps {
                return runInternal()
             }
-            }
         }
     }
 
