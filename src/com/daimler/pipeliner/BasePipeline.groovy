@@ -238,6 +238,19 @@ abstract class BasePipeline implements Serializable {
      */
     abstract void stages(Map stageInput)
 
+   /**
+     * Post function hook that is executed after the build exits docker container
+     * but before the image is removed.
+     *
+     * NOTE: This is run inside of the scheduled node and workspace
+     * NOTE: This is run for each parallel separately
+     *
+     * @param A Map with the inputs for stages
+     */
+    void postDocker(Map stageInput) {
+        Logger.info("BasePipeline: postDocker")
+    }
+
     /**
      * Post function hook that is executed even in case earlier stages have failed
      *
@@ -647,6 +660,8 @@ abstract class BasePipeline implements Serializable {
                 }
             }
         }, this.checkoutCredentialsId)
+
+        this.postDocker(stageInput)
 
         //Remove custom current user layers
         if (!this.dockerArgs.contains(DOCKER_ROOT_USER) && utils.shWithStatus("docker rmi " + tag) != 0) {
