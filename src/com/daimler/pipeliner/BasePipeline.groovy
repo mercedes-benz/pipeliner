@@ -124,6 +124,11 @@ abstract class BasePipeline implements Serializable {
      */
     protected String currentGroupId
     /**
+     * Name of the docker image and tag used to build.
+     * Value is available once the docker image is built.
+     */
+    protected String dockerImageTag = ''
+    /**
      * Root user constant that is used to run docker
      */
     final String DOCKER_ROOT_USER = "-u 0:0"
@@ -607,6 +612,8 @@ abstract class BasePipeline implements Serializable {
         if (!this.dockerArgs.contains(DOCKER_ROOT_USER)) {
             tag = appendCurrentUserToImage(image, userId, groupId, currentUser)
         }
+
+        this.dockerImageTag = tag
 
         checkDockerVolumeDirectories(evaluatedArgs)
 
