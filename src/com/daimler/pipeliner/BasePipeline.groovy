@@ -115,6 +115,8 @@ abstract class BasePipeline implements Serializable {
      * Value is available once node is entered.
      */
     protected String currentGroupId
+
+    protected String imageTag
     /**
      * Root user constant that is used to run docker
      */
@@ -593,6 +595,8 @@ abstract class BasePipeline implements Serializable {
             Logger.info("Pulling tag: " + tag)
             pullDockerTag(tag)
         }
+
+        dockerTag = tag
 
         //Check if we need to add current user to the image, if so, build a new image with it
         if (!this.dockerArgs.contains(DOCKER_ROOT_USER)) {
