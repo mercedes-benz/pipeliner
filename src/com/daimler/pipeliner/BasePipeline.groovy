@@ -34,6 +34,14 @@ abstract class BasePipeline implements Serializable {
      */
     protected String nodeLabelExpr = ''
     /**
+     * Alternative node label expression used together with altTargets
+     */
+    protected String altNodeLabelExpr = ''
+    /**
+     * Space delimited list of alternative targets that use altNodeLabelExpr
+     */
+    protected String altTargets = ''
+    /**
      * The timeout for pipeline in Minutes
      * Default value 210 minutes = 3.5 hours
      */
@@ -293,10 +301,11 @@ abstract class BasePipeline implements Serializable {
      * Adds a node and runs stages
      *
      * @param A Map with the inputs for stages
+     * @param A String with alternative node label
      */
-    void setupNodeWithStages(Map stageInput) {
+    void setupNodeWithStages(Map stageInput, String alternativeLabel) {
         Logger.info("Parallel name: " + stageInput["parallelName"])
-        this.script.node(this.nodeLabelExpr) {
+        this.script.node(alternativeLabel ? alternativeLabel : this.nodeLabelExpr) {
             evaluateFromEnvironment()
             this.script.ws(createWorkspaceName()) {
               this.utils.withSshAgent( {
@@ -651,11 +660,12 @@ abstract class BasePipeline implements Serializable {
      * Adds a node and run stages in a docker container with specified arguments
      *
      * @param A Map with the inputs for stages
+     * @param A String with alternative node label
      */
-    void setupDockerWithStages(Map stageInput) {
+    void setupDockerWithStages(Map stageInput, String alternativeLabel) {
         Logger.info("Parallel name: " + stageInput["parallelName"])
         //NOTE: Running on master jenkins now
-        this.script.node(this.nodeLabelExpr) {
+        this.script.node(alternativeLabel ? alternativeLabel : this.nodeLabelExpr) {
             evaluateFromEnvironment()
             this.script.ws(createWorkspaceName()) {
                 try {
@@ -743,6 +753,11 @@ abstract class BasePipeline implements Serializable {
                 // Inject the parallelName to the stageInput for the job for backward reference
                 stageInput["parallelName"] = parallelName
                 parallelList.add(parallelName)
+                String alternativeLabel = null
+                if (altTargets.contains(parallelName)) {
+                    Logger.info("Using alternative node label: ${altNodeLabelExpr} for ${parallelName}")
+                    alternativeLabel = altNodeLabelExpr
+                }
 
                 initValueMap(parallelName)
 
@@ -750,9 +765,9 @@ abstract class BasePipeline implements Serializable {
                     try {
                         // Setup stages with Docker or node, based on configuration
                         if (this.dockerImage?.trim()) {
-                            this.setupDockerWithStages(stageInput)
+                            this.setupDockerWithStages(stageInput, alternativeLabel)
                         } else if (this.nodeLabelExpr?.trim()) {
-                            this.setupNodeWithStages(stageInput)
+                            this.setupNodeWithStages(stageInput, alternativeLabel)
                         } else {
                             this.script.node {
                                 evaluateFromEnvironment()
