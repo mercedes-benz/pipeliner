@@ -238,6 +238,18 @@ abstract class BasePipeline implements Serializable {
      */
     abstract void stages(Map stageInput)
 
+    /**
+     * Post function hook that is executed after the docker image is built.
+     *
+     * NOTE: This is run inside of the scheduled node and workspace
+     * NOTE: This is run for each parallel separately
+     *
+     * @param A Map with the inputs for stages
+     */
+    void postDockerBuild(Map stageInput) {
+        Logger.info("BasePipeline: postDockerBuild")
+    }
+
    /**
      * Post function hook that is executed after the build exits docker container
      * but before the image is removed.
@@ -627,6 +639,8 @@ abstract class BasePipeline implements Serializable {
         }
 
         this.dockerImageTag = tag
+
+        this.postDockerBuild(stageInput)
 
         checkDockerVolumeDirectories(evaluatedArgs)
 
