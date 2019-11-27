@@ -124,6 +124,11 @@ abstract class BasePipeline implements Serializable {
      */
     protected String currentGroupId
     /**
+     * Name of the docker image and tag used to build.
+     * Value is available once the docker image is built.
+     */
+    protected String dockerImageTag = ''
+    /**
      * Root user constant that is used to run docker
      */
     final String DOCKER_ROOT_USER = "-u 0:0"
@@ -232,6 +237,31 @@ abstract class BasePipeline implements Serializable {
      * @param A Map with the inputs for stages
      */
     abstract void stages(Map stageInput)
+
+    /**
+     * Post function hook that is executed after the docker image is built.
+     *
+     * NOTE: This is run inside of the scheduled node and workspace
+     * NOTE: This is run for each parallel separately
+     *
+     * @param A Map with the inputs for stages
+     */
+    void postDockerBuild(Map stageInput) {
+        Logger.info("BasePipeline: postDockerBuild")
+    }
+
+   /**
+     * Post function hook that is executed after the build exits docker container
+     * but before the image is removed.
+     *
+     * NOTE: This is run inside of the scheduled node and workspace
+     * NOTE: This is run for each parallel separately
+     *
+     * @param A Map with the inputs for stages
+     */
+    void postDocker(Map stageInput) {
+        Logger.info("BasePipeline: postDocker")
+    }
 
     /**
      * Post function hook that is executed even in case earlier stages have failed
@@ -608,6 +638,10 @@ abstract class BasePipeline implements Serializable {
             tag = appendCurrentUserToImage(image, userId, groupId, currentUser)
         }
 
+        this.dockerImageTag = tag
+
+        this.postDockerBuild(stageInput)
+
         checkDockerVolumeDirectories(evaluatedArgs)
 
         // Add docker socket mount if we want to push docker image to docker registry afterward
@@ -640,6 +674,8 @@ abstract class BasePipeline implements Serializable {
                 }
             }
         }, this.checkoutCredentialsId)
+
+        this.postDocker(stageInput)
 
         //Remove custom current user layers
         if (!this.dockerArgs.contains(DOCKER_ROOT_USER) && utils.shWithStatus("docker rmi " + tag) != 0) {
