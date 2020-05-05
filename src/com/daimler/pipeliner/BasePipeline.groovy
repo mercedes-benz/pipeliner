@@ -593,6 +593,16 @@ abstract class BasePipeline implements Serializable {
     }
 
     /**
+     * Function to prune docker builder caches
+     *
+     * Since we're using DOCKER_BUILDKIT and it has some issues in handling caches
+     * for pulled images, we need to manually cleanup builder caches
+     */
+    void dockerPrune() {
+        script.sh "docker builder prune -af"
+    }
+
+    /**
      * Function to run docker stages inside already specified node and workspace
      *
      * @param A Map with the inputs for stages
@@ -614,6 +624,8 @@ abstract class BasePipeline implements Serializable {
         //Tag that we use for building and running a container
         String tag = this.dockerImage
         String customTag = null
+
+        dockerPrune()
 
         //Check if we need to use a custom image, if so, build a new image with it
         if (this.customDockerfileSource) {
