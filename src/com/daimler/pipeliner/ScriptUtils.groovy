@@ -399,7 +399,7 @@ public class ScriptUtils {
 
         def cmd = 'git submodule update --init'
         if (args != null)
-            cmd += args.join(" ")
+            cmd += ' ' + args.join(" ")
         else
             cmd += "\n"
 
