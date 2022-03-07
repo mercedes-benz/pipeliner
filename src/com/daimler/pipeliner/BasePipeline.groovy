@@ -478,6 +478,7 @@ abstract class BasePipeline implements Serializable {
         content += "RUN groupadd -f -g " + groupId + " " + currentUser + "\n"
         content += "RUN useradd -l -g " + groupId + " --uid " + userId + " -ms /bin/bash " + currentUser + "\n"
         content += "RUN echo " + currentUser + ":" + currentUser + "| chpasswd\n"
+        content += "RUN mkdir -p /etc/sudoers.d/ || true\n"
         content += 'RUN echo "' + currentUser + ' ALL=(ALL) NOPASSWD:SETENV: ALL" > /etc/sudoers.d/' + currentUser + '||true\n'
         content += "USER " + currentUser + "\n"
         content += "ENV USER=" + currentUser + "\n"
